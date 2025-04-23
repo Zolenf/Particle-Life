@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Particle Life Simulator</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        height: 100vh;
+        margin: 0;
+        background-color: #111;
+        color: #fff;
+        font-family: sans-serif;
+      }
+
+      canvas {
+        display: block;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+
+      .canvas {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+
+      #controls {
+        max-height: 95vh;
+        overflow-y: auto;
+        background-color: #222;
+        border-radius: 10px;
+        padding: 15px;
+        min-width: 250px;
+      }
+
+      .color-section {
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      .green {
+        background-color: rgba(0, 255, 0, 0.1);
+      }
+      .red {
+        background-color: rgba(255, 0, 0, 0.1);
+      }
+      .yellow {
+        background-color: rgba(255, 255, 0, 0.1);
+        color: #000;
+      }
+      .blue {
+        background-color: rgba(0, 0, 255, 0.1);
+      }
+
+      .color-section h4 {
+        margin: 0 0 5px 0;
+        font-size: 1em;
+        text-transform: uppercase;
+      }
+
+      input[type="number"] {
+        width: 60px;
+        margin: 3px;
+        padding: 2px;
+        background: #333;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+      }
+
+      button {
+        margin-top: 10px;
+        padding: 8px;
+        width: 100%;
+        background-color: #444;
+        border: none;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #666;
+      }
+
+      .group-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <canvas id="life"></canvas>
+    </div>
+
+    <div id="controls">
+      <h3>Reguły oddziaływania</h3>
+      <div id="rule-sections"></div>
+
+      <button id="apply">Zastosuj reguły</button>
+      <button id="regen">Wygeneruj cząsteczki</button>
+
+      <h4>Tempo symulacji</h4>
+      <input type="range" min="1" max="100" value="30" id="speedRange" />
+      <p id="speedValue">30 FPS</p>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("life");
+      const m = canvas.getContext("2d");
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth * 0.65;
+        canvas.height = window.innerHeight * 0.95;
+      }
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      const colors = ["green", "red", "yellow", "blue"];
+      const defaultRules = {
+        green: { green: -0.32, red: -0.17, yellow: 0.34, blue: 0 },
+        red: { green: -0.34, red: -0.1, yellow: 0, blue: 0 },
+        yellow: { green: -0.2, red: 0, yellow: 0.15, blue: 0 },
+        blue: { green: 0, red: 0, yellow: 0, blue: 0.05 },
+      };
+      const rules = {};
+      const particleCounts = { green: 150, red: 150, yellow: 150, blue: 50 };
+      const particleGroups = {};
+      let particles = [];
+
+      function draw(x, y, c, s) {
+        m.fillStyle = c;
+        m.fillRect(x, y, s, s);
+      }
+
+      function particle(x, y, c) {
+        return { x: x, y: y, vx: 0, vy: 0, color: c };
+      }
+
+      function randomX() {
+        return Math.random() * (canvas.width - 100) + 50;
+      }
+
+      function randomY() {
+        return Math.random() * (canvas.height - 100) + 50;
+      }
+
+      function create(number, color) {
+        let group = [];
+        for (let i = 0; i < number; i++) {
+          let p = particle(randomX(), randomY(), color);
+          particles.push(p);
+          group.push(p);
+        }
+        return group;
+      }
+
+      function regenerateParticles() {
+        particles = [];
+        colors.forEach((c) => {
+          const count = parseInt(document.getElementById(`${c}_count`).value);
+          particleCounts[c] = count;
+          particleGroups[c] = create(count, c);
+        });
+      }
+
+      function rule(p1, p2, g) {
+        for (let i = 0; i < p1.length; i++) {
+          let fx = 0,
+            fy = 0;
+          for (let j = 0; j < p2.length; j++) {
+            let a = p1[i],
+              b = p2[j];
+            let dx = a.x - b.x,
+              dy = a.y - b.y;
+            let d = Math.sqrt(dx * dx + dy * dy);
+            if (d > 0 && d < 80) {
+              let F = g / d;
+              F = Math.min(F, 5);
+              fx += F * dx;
+              fy += F * dy;
+            }
+          }
+          let a = p1[i];
+          a.vx = (a.vx + fx) * 0.5;
+          a.vy = (a.vy + fy) * 0.5;
+          a.x += a.vx;
+          a.y += a.vy;
+          if (a.x < 0 || a.x > canvas.width - 5) a.vx *= -1;
+          if (a.y < 0 || a.y > canvas.height - 5) a.vy *= -1;
+          a.x = Math.max(0, Math.min(canvas.width - 5, a.x));
+          a.y = Math.max(0, Math.min(canvas.height - 5, a.y));
+        }
+      }
+
+      const sectionContainer = document.getElementById("rule-sections");
+      colors.forEach((from) => {
+        const section = document.createElement("div");
+        section.className = `color-section ${from}`;
+        const count = particleCounts[from];
+        section.innerHTML = `
+        <div class="group-header">
+          <h4>${from}</h4>
+          <input type="number" id="${from}_count" value="${count}" min="0" step="10" />
+        </div>
+      `;
+        rules[from] = {};
+        colors.forEach((to) => {
+          const id = `${from}_${to}`;
+          const value = defaultRules[from][to];
+          rules[from][to] = value;
+          section.innerHTML += `${to}: <input type="number" id="${id}" value="${value}" step="0.01"><br>`;
+        });
+        sectionContainer.appendChild(section);
+      });
+
+      document.getElementById("apply").onclick = () => {
+        colors.forEach((from) => {
+          colors.forEach((to) => {
+            const id = `${from}_${to}`;
+            rules[from][to] = parseFloat(document.getElementById(id).value);
+          });
+        });
+      };
+
+      document.getElementById("regen").onclick = regenerateParticles;
+
+      function applyRules() {
+        colors.forEach((from) => {
+          colors.forEach((to) => {
+            rule(particleGroups[from], particleGroups[to], rules[from][to]);
+          });
+        });
+      }
+
+      let fps = 60;
+      const speedSlider = document.getElementById("speedRange");
+      const speedValue = document.getElementById("speedValue");
+
+      speedSlider.addEventListener("input", () => {
+        fps = parseInt(speedSlider.value);
+        speedValue.textContent = `${fps} FPS`;
+      });
+
+      regenerateParticles();
+
+      function update() {
+        m.fillStyle = "black";
+        m.fillRect(0, 0, canvas.width, canvas.height);
+        applyRules();
+        particles.forEach((p) => draw(p.x, p.y, p.color, 5));
+        setTimeout(update, 1000 / fps);
+      }
+
+      update();
+    </script>
+  </body>
+</html>
