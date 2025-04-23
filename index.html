@@ -114,6 +114,8 @@
 
       <button id="apply">Zastosuj reguły</button>
       <button id="regen">Wygeneruj cząsteczki</button>
+      <button id="reset">Reset</button>
+      <button id="randomize">Randomizuj reguły</button>
 
       <h4>Tempo symulacji</h4>
       <input type="range" min="1" max="100" value="30" id="speedRange" />
@@ -213,7 +215,7 @@
         const section = document.createElement("div");
         section.className = `color-section ${from}`;
         const count = particleCounts[from];
-        section.innerHTML = `
+        section.innerHTML = `  
         <div class="group-header">
           <h4>${from}</h4>
           <input type="number" id="${from}_count" value="${count}" min="0" step="10" />
@@ -239,6 +241,28 @@
       };
 
       document.getElementById("regen").onclick = regenerateParticles;
+
+      // Funkcja randomizująca reguły
+      document.getElementById("randomize").onclick = () => {
+        colors.forEach((from) => {
+          colors.forEach((to) => {
+            const id = `${from}_${to}`;
+            const randomValue = (Math.random() * 2 - 1).toFixed(2); // Losowa wartość z zakresu [-1, 1]
+            document.getElementById(id).value = randomValue;
+            rules[from][to] = parseFloat(randomValue);
+          });
+        });
+      };
+
+      document.getElementById("reset").onclick = () => {
+        colors.forEach((from) => {
+          colors.forEach((to) => {
+            const id = `${from}_${to}`;
+            document.getElementById(id).value = "0";
+            rules[from][to] = 0;
+          });
+        });
+      };
 
       function applyRules() {
         colors.forEach((from) => {
